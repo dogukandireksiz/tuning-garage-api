@@ -1,27 +1,20 @@
 package controllers
 
 import (
-    "fmt"
+    
 
     "api/models" // Kendi oluşturduğumuz modeli içeri aktarıyoruz
-    
+    "api/database"
     "github.com/gofiber/fiber/v3"
 )
 
-// Geçici veritabanı
-
-var garage = []models.Car{
-	{
-	ID : "1",
-	Brand : "BMW",
-	Model : "M3",
-	Mods : []string{"Stage 1 ECU Remap","Spor Süspansiyon"},
-	},
-}
-
 func GetCars(c fiber.Ctx) error  {
-		//garage listesini JSON formatına çevirip istemciye gönderme
-		return c.JSON(garage)
+	var cars []models.Car
+	//GORM veritabanındaki tüm kayıtları bulup cars dizisine doldur
+	database.DB.Find(&cars)
+	
+	//cars listesini JSON formatına çevirip istemciye gönderme
+	return c.JSON(cars)
 }
 
 func CreateCar(c fiber.Ctx) error  {
@@ -38,12 +31,7 @@ func CreateCar(c fiber.Ctx) error  {
 			})
 		}
 
-		// Henüz gerçek bir veritabanı olmadığı için ID yi manuel veriyoruz
-		// Mevcut garaj uzunluğuna 1 ekleyip string e çeviriyoruz
-		newCar.ID = fmt.Sprintf("%d",len(garage)+1)
-
-		// Yeni aracı garaj listesine ekliyoruz
-		garage = append(garage, newCar)
+		database.DB.Create(&newCar)
 
 		// 201 Created statü koduyla birlikte eklenen aracı geri dönüyoruz
 		return c.Status(fiber.StatusCreated).JSON(newCar)
@@ -54,6 +42,16 @@ func CreateCar(c fiber.Ctx) error  {
 func UpdateCar(c fiber.Ctx) error  {
 		// URL den ":id" kısmını yakalıyoruz
 		id := c.Params("id")
+		var car models.Car
+
+		//Önce aracı veritabanında arıyoruz
+		if result := database.DB.First(&car,id); result.Error != nil{
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error" : "Araç bulunamadı.",
+			})
+		}
+
+	
 
 		// İstemciden gelen güncel veriyi okuyoruz
 		var updatedData models.Car
@@ -63,40 +61,35 @@ func UpdateCar(c fiber.Ctx) error  {
 			})
 		}
 
-		for i , car := range garage{
-			if car.ID == id{
-				// ID sinin değişmesini engelliyoruz
-				updatedData.ID = car.ID
+		//Bulduğumuz aracın özelliklerini güncelliyoruz
+		car.Brand = updatedData.Brand
+		car.Model = updatedData.Model
 
-				//Eski verinin üzerine yeni veriyi yazıyoruz
-				garage[i] = updatedData
+		database.DB.Save(&car)
 
-				//Güncellenmiş aracı geri dönüyoruz
-				return c.JSON(garage[i])
-			}
-		}
-
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":"Bu ID'ye sahip bir araç garajda yok",
-		})
+		return c.JSON(&car)
+		
 }
 
 
 func DeleteCar(c fiber.Ctx) error  {
 		id := c.Params("id")
+		var car models.Car
 
-		for i, car := range garage{
-			if car.ID == id{
-				//garage[:i] -> baştan i ye kadar olan kısım
-				//garage[i+1:] -> i+1 den sona kadar olan kısım
-				garage = append(garage[:i],garage[i+1:]...)
-				return c.JSON(fiber.Map{
-					"message" : "Araç garajdan başarıyla çıkarıldı.",
-				})
-			}
+		if result := database.DB.First(&car,id); result.Error != nil{
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error" : "Araç bulunamadi.",
+			})
 		}
 
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error" : "Araç bulunamadi",
+		database.DB.Delete(&car)
+
+		return c.JSON(fiber.Map{
+			"message":"Araç başariyla silindi.", 
 		})
+
 }
+
+//Go'da yazdığın kodları çalıştırıp bir silme (DELETE) işlemi yaptığında çok ilginç bir şey olacak. İstek sana başarıyla silindiğini söyleyecek, GET /api/cars yaptığında araç listede görünmeyecek... Ama aslında o araç veritabanından silinmedi!
+
+//models.Car içine eklediğimiz gorm.Model yapısı sayesinde GORM Soft Delete (Yumuşak Silme) uygular. Yani veritabanında satırı yok etmez, sadece deleted_at (silinme tarihi) sütununu o anki saat ile doldurur. GORM, deleted_at sütunu dolu olan verileri standart aramalarda (Find veya First) otomatik olarak gizler. Bu, yanlışlıkla veri silinmelerine karşı harika bir güvenlik ağıdır.

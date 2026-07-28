@@ -6,10 +6,14 @@ import (
 	"log" // hata/bilgi yazdırma kütüphanesidir.
 
 	"github.com/gofiber/fiber/v3" //web sunucu altyapısı.
+	"api/database"
 )
 
 
 func main()  {
+	
+	//Fiber dan önce veritabanına bağlanıyoruz
+	database.ConnectDB()
 	
 	app := fiber.New() //Fiber kütüphanesinden yeni bir sunucu nesnesi yaratılır. app değişkeni artık bizim web sunucumuzdur.
 
