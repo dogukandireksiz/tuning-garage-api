@@ -7,6 +7,7 @@ import (
 	"api/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"os"
 )
 
 // DB, uygulamanın her yerinden veritabanına erişmek için kullanacağımız global değişken.
@@ -14,10 +15,17 @@ import (
 var DB *gorm.DB
 
 func ConnectDB()  {
+	// Çevre değişkeninden veritabanı adını okuyoruz
+	dbName := os.Getenv("DB_NAME")
+
+	// Eğer bir şekilde .env okunmazsa ve isim boş gelirse, güvenlik önlemi alıyoruz
+	if dbName == ""{
+		dbName = "default.db"
+	}
 	
 	var err error
 	// "garage.db" adında bir SQLite dostasına bağlanıyoruz
-	DB, err = gorm.Open(sqlite.Open("garage.db"),&gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open(dbName),&gorm.Config{})
 	if err != nil{
 		log.Fatal("Veritabanına bağlanılamadı! Hata: ",err)
 	}

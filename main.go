@@ -6,6 +6,8 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/logger" // Middleware paketimiz
 	
 	"log" // hata/bilgi yazdırma kütüphanesidir.
+	"os"
+	"github.com/joho/godotenv" // Yeni ekledik
 
 	"github.com/gofiber/fiber/v3" //web sunucu altyapısı.
 	"api/database"
@@ -14,6 +16,12 @@ import (
 
 func main()  {
 	
+	// .env dosyasını sisteme yüklüyoruz
+	err := godotenv.Load()
+	if err != nil{
+		log.Println("Uyarı: .env dosyası bulunamadı, sistem çevre değişkenleri kullanılacak.")
+	}
+
 	//Fiber dan önce veritabanına bağlanıyoruz
 	database.ConnectDB()
 	
@@ -26,8 +34,14 @@ func main()  {
 	//Rotaları kurma
 	routes.SetupRoutes(app)
 
+	// Port numarasını .env den alıyoruz
+	port := os.Getenv("PORT")
+	if port == ""{
+		port = "3000" // Fallback(B planı)
+	} 
 
-	log.Println("Garaj API 3000 portunda çalışıyor...")
-	log.Fatal(app.Listen(":3000"))
+
+	log.Println("Garaj API %s portunda çalışıyor...",port)
+	log.Fatal(app.Listen(":" + port))
 }
 
