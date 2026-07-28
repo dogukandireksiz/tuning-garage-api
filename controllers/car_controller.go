@@ -1,0 +1,102 @@
+package controllers
+
+import (
+    "fmt"
+
+    "api/models" // Kendi oluşturduğumuz modeli içeri aktarıyoruz
+    
+    "github.com/gofiber/fiber/v3"
+)
+
+// Geçici veritabanı
+
+var garage = []models.Car{
+	{
+	ID : "1",
+	Brand : "BMW",
+	Model : "M3",
+	Mods : []string{"Stage 1 ECU Remap","Spor Süspansiyon"},
+	},
+}
+
+func GetCars(c fiber.Ctx) error  {
+		//garage listesini JSON formatına çevirip istemciye gönderme
+		return c.JSON(garage)
+}
+
+func CreateCar(c fiber.Ctx) error  {
+		// içi boş bir araba nesnesi yaratıyoruz.
+		var newCar models.Car
+
+		// istemciden gelen JSON verisini newCar'ın içine kopyalıyoruz. (Bind)
+		// hata çıkarsa (örn: JSON formatı bozuksa) if bloğu çalışır
+		// c.Bind().JSON(&newCar): Fiber v3'ün veri bağlama metodudur. İstemciden gelen JSON verisini okur ve bizim Car yapımızla eşleştirir.
+
+		if err := c.Bind().JSON(&newCar); err != nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error" : "Gelen veri okunamadı veya fotmat hatali",
+			})
+		}
+
+		// Henüz gerçek bir veritabanı olmadığı için ID yi manuel veriyoruz
+		// Mevcut garaj uzunluğuna 1 ekleyip string e çeviriyoruz
+		newCar.ID = fmt.Sprintf("%d",len(garage)+1)
+
+		// Yeni aracı garaj listesine ekliyoruz
+		garage = append(garage, newCar)
+
+		// 201 Created statü koduyla birlikte eklenen aracı geri dönüyoruz
+		return c.Status(fiber.StatusCreated).JSON(newCar)
+		//c.Status(fiber.StatusCreated): Sadece veri dönmek yetmez, HTTP iletişim kurallarına uymalıyız. Başarılı bir ekleme işlemi yapıldığında standart olarak 201 Created kodu dönülür. Hata durumunda ise 400 Bad Request döndük.
+
+}
+
+func UpdateCar(c fiber.Ctx) error  {
+		// URL den ":id" kısmını yakalıyoruz
+		id := c.Params("id")
+
+		// İstemciden gelen güncel veriyi okuyoruz
+		var updatedData models.Car
+		if err := c.Bind().JSON(&updatedData) ; err != nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error" : "Gelen veri okunamadi",
+			})
+		}
+
+		for i , car := range garage{
+			if car.ID == id{
+				// ID sinin değişmesini engelliyoruz
+				updatedData.ID = car.ID
+
+				//Eski verinin üzerine yeni veriyi yazıyoruz
+				garage[i] = updatedData
+
+				//Güncellenmiş aracı geri dönüyoruz
+				return c.JSON(garage[i])
+			}
+		}
+
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":"Bu ID'ye sahip bir araç garajda yok",
+		})
+}
+
+
+func DeleteCar(c fiber.Ctx) error  {
+		id := c.Params("id")
+
+		for i, car := range garage{
+			if car.ID == id{
+				//garage[:i] -> baştan i ye kadar olan kısım
+				//garage[i+1:] -> i+1 den sona kadar olan kısım
+				garage = append(garage[:i],garage[i+1:]...)
+				return c.JSON(fiber.Map{
+					"message" : "Araç garajdan başarıyla çıkarıldı.",
+				})
+			}
+		}
+
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error" : "Araç bulunamadi",
+		})
+}
