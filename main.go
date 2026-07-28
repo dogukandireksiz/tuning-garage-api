@@ -63,7 +63,39 @@ func main()  {
 		// 201 Created statü koduyla birlikte eklenen aracı geri dönüyoruz
 		return c.Status(fiber.StatusCreated).JSON(newCar)
 		//c.Status(fiber.StatusCreated): Sadece veri dönmek yetmez, HTTP iletişim kurallarına uymalıyız. Başarılı bir ekleme işlemi yapıldığında standart olarak 201 Created kodu dönülür. Hata durumunda ise 400 Bad Request döndük.
-		
+
+	})
+
+	// PUT : Garajdaki mevcut bir aracı güncelle
+	// (:) ile  başlayan kısımlar dinamik rota (route parameter) olarak adlandırılır 1 de yazılsa 99 da yazılsa çalışır.
+	app.Put("api/cars/:id",func(c fiber.Ctx) error  {
+		// URL den ":id" kısmını yakalıyoruz
+		id := c.Params("id")
+
+		// İstemciden gelen güncel veriyi okuyoruz
+		var updatedData Car
+		if err := c.Bind().JSON(&updatedData) ; err != nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error" : "Gelen veri okunamadi",
+			})
+		}
+
+		for i , car := range garage{
+			if car.ID == id{
+				// ID sinin değişmesini engelliyoruz
+				updatedData.ID = car.ID
+
+				//Eski verinin üzerine yeni veriyi yazıyoruz
+				garage[i] = updatedData
+
+				//Güncellenmiş aracı geri dönüyoruz
+				return c.JSON(garage[i])
+			}
+		}
+
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":"Bu ID'ye sahip bir araç garajda yok",
+		})
 	})
 
 	log.Println("Garaj API 3000 portunda çalışıyor...")
