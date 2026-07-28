@@ -6,7 +6,12 @@ import (
     "api/models" // Kendi oluşturduğumuz modeli içeri aktarıyoruz
     "api/database"
     "github.com/gofiber/fiber/v3"
+	"api/dto"
+	"github.com/go-playground/validator/v10"
 )
+
+// Kalite kontrol uzmanımız (Validator nesnesi)
+var validate = validator.New()
 
 func GetCars(c fiber.Ctx) error  {
 	var cars []models.Car
@@ -19,17 +24,30 @@ func GetCars(c fiber.Ctx) error  {
 }
 
 func CreateCar(c fiber.Ctx) error  {
-		// içi boş bir araba nesnesi yaratıyoruz.
-		var newCar models.Car
+		// 1. Veriyi veritabanı modeline (models.Car) değil, DTO şablonuna alıyoruz
+		var req dto.CreateCarRequest
 
 		// istemciden gelen JSON verisini newCar'ın içine kopyalıyoruz. (Bind)
 		// hata çıkarsa (örn: JSON formatı bozuksa) if bloğu çalışır
 		// c.Bind().JSON(&newCar): Fiber v3'ün veri bağlama metodudur. İstemciden gelen JSON verisini okur ve bizim Car yapımızla eşleştirir.
 
-		if err := c.Bind().JSON(&newCar); err != nil{
+		if err := c.Bind().JSON(&req); err != nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error" : "Gelen veri okunamadı veya fotmat hatali",
 			})
+		}
+
+		// DTO daki kuralları test ediyoruz
+		if err := validate.Struct(req); err != nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error" : "Doğrulama hatası",
+			})
+		}
+
+		// Kalite kontrolden geçti! DTO daki verileri gerçek veritabanı modelimize kopyalıyoruz
+		newCar := models.Car{
+			Brand: req.Brand,
+			Modell: req.Brand,
 		}
 
 		database.DB.Create(&newCar)
