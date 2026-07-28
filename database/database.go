@@ -25,7 +25,7 @@ func ConnectDB()  {
 	log.Println("Veritabanı bağlantısı başarılı.")
 
 	// AutoMigrate: Eğer 'cars' tablosu yoksa oluşturur, varsa eksik kolonları ekler.
-	err = DB.AutoMigrate(&models.Car{})
+	err = DB.AutoMigrate(&models.Car{},&models.Modification{})
 	
 	if err != nil{
 		log.Fatal("Tablolar oluşturulamadı! Hata: ",err)

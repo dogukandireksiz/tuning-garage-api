@@ -1,7 +1,9 @@
 package main
 
 import (
-	"api/controllers"
+	
+	"api/routes"
+	"github.com/gofiber/fiber/v3/middleware/logger" // Middleware paketimiz
 	
 	"log" // hata/bilgi yazdırma kütüphanesidir.
 
@@ -17,19 +19,13 @@ func main()  {
 	
 	app := fiber.New() //Fiber kütüphanesinden yeni bir sunucu nesnesi yaratılır. app değişkeni artık bizim web sunucumuzdur.
 
+	//Middleware: Gözlemci ekleme
+	//Bu satır sayesinde API'ye gelen her istek (hangi IP'den geldi,ne kadar sürdü,hangi statü kodunu döndü) terminale yazdırılacak.
+	app.Use(logger.New())
 
-	//Araçları listeleme
-	app.Get("/api/cars",controllers.GetCars)
+	//Rotaları kurma
+	routes.SetupRoutes(app)
 
-	// POST : Garaja yeni araç ekleme
-	app.Post("api/cars",controllers.CreateCar)
-
-	// PUT : Garajdaki mevcut bir aracı güncelle
-	// (:) ile  başlayan kısımlar dinamik rota (route parameter) olarak adlandırılır 1 de yazılsa 99 da yazılsa çalışır.
-	app.Put("api/cars/:id",controllers.UpdateCar)
-
-	// Delete
-	app.Delete("api/cars/:id",controllers.DeleteCar)
 
 	log.Println("Garaj API 3000 portunda çalışıyor...")
 	log.Fatal(app.Listen(":3000"))

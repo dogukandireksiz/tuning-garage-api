@@ -11,7 +11,8 @@ import (
 func GetCars(c fiber.Ctx) error  {
 	var cars []models.Car
 	//GORM veritabanındaki tüm kayıtları bulup cars dizisine doldur
-	database.DB.Find(&cars)
+	// Preload("Mods"): "Arabaları getirirken git mods tablosunada bak, o arabaya ait parçaları listeye ekle" demek."
+	database.DB.Preload("Mods").Find(&cars)
 	
 	//cars listesini JSON formatına çevirip istemciye gönderme
 	return c.JSON(cars)
@@ -63,7 +64,7 @@ func UpdateCar(c fiber.Ctx) error  {
 
 		//Bulduğumuz aracın özelliklerini güncelliyoruz
 		car.Brand = updatedData.Brand
-		car.Model = updatedData.Model
+		car.Modell = updatedData.Modell
 
 		database.DB.Save(&car)
 
@@ -93,3 +94,37 @@ func DeleteCar(c fiber.Ctx) error  {
 //Go'da yazdığın kodları çalıştırıp bir silme (DELETE) işlemi yaptığında çok ilginç bir şey olacak. İstek sana başarıyla silindiğini söyleyecek, GET /api/cars yaptığında araç listede görünmeyecek... Ama aslında o araç veritabanından silinmedi!
 
 //models.Car içine eklediğimiz gorm.Model yapısı sayesinde GORM Soft Delete (Yumuşak Silme) uygular. Yani veritabanında satırı yok etmez, sadece deleted_at (silinme tarihi) sütununu o anki saat ile doldurur. GORM, deleted_at sütunu dolu olan verileri standart aramalarda (Find veya First) otomatik olarak gizler. Bu, yanlışlıkla veri silinmelerine karşı harika bir güvenlik ağıdır.
+
+
+// POST: Mevcut bir araca modifikasyon ekle
+func AddModification(c fiber.Ctx) error {
+
+	carID := c.Params("id")
+	var car models.Car
+
+	// Önce böyle bir araç garajda var mı diye bakıyoruz
+	if result := database.DB.First(&car,carID) ; result.Error != nil{
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error" : "Araç bulunamadi",
+		})
+	}
+
+	// İstemciden gelen parça bilgisini alıyoruz
+	var mod models.Modification
+	if err := c.Bind().JSON(&mod); err != nil{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":"Veri okunamadı",
+		})
+	}
+
+	//Parçanın kime ait olduğunu belirliyoruz
+	mod.CarID = car.ID
+
+	//Parçayı veritabanına kaydediyoruz
+	database.DB.Create(&mod)
+	
+	return c.Status(fiber.StatusCreated).JSON(mod)
+
+
+	
+}
