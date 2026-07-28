@@ -98,6 +98,26 @@ func main()  {
 		})
 	})
 
+	// Delete
+	app.Delete("api/cars/:id",func(c fiber.Ctx) error  {
+		id := c.Params("id")
+
+		for i, car := range garage{
+			if car.ID == id{
+				//garage[:i] -> baştan i ye kadar olan kısım
+				//garage[i+1:] -> i+1 den sona kadar olan kısım
+				garage = append(garage[:i],garage[i+1:]...)
+				return c.JSON(fiber.Map{
+					"message" : "Araç garajdan başarıyla çıkarıldı.",
+				})
+			}
+		}
+
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error" : "Araç bulunamadi",
+		})
+	})
+
 	log.Println("Garaj API 3000 portunda çalışıyor...")
 	log.Fatal(app.Listen(":3000"))
 }
